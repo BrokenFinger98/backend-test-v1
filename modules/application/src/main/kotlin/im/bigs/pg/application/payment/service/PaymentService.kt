@@ -9,7 +9,6 @@ import im.bigs.pg.application.pg.port.out.PgApproveRequest
 import im.bigs.pg.application.pg.port.out.PgClientOutPort
 import im.bigs.pg.domain.calculation.FeeCalculator
 import im.bigs.pg.domain.payment.Payment
-import im.bigs.pg.domain.payment.PaymentStatus
 import org.springframework.stereotype.Service
 
 /**
@@ -46,20 +45,22 @@ class PaymentService(
                 productName = command.productName,
             ),
         )
-        val hardcodedRate = java.math.BigDecimal("0.0300")
-        val hardcodedFixed = java.math.BigDecimal("100")
-        val (fee, net) = FeeCalculator.calculateFee(command.amount, hardcodedRate, hardcodedFixed)
+
+        val feePolicy = feePolicyRepository.findEffectivePolicy(partner.id, approve.approvedAt)
+            ?: throw IllegalArgumentException("Fee Policy not found: ${partner.id}")
+
+        val (fee, net) = FeeCalculator.calculateFee(command.amount, feePolicy.percentage, feePolicy.fixedFee)
         val payment = Payment(
             partnerId = partner.id,
             amount = command.amount,
-            appliedFeeRate = hardcodedRate,
+            appliedFeeRate = feePolicy.percentage,
             feeAmount = fee,
             netAmount = net,
             cardBin = command.cardBin,
             cardLast4 = command.cardLast4,
             approvalCode = approve.approvalCode,
             approvedAt = approve.approvedAt,
-            status = PaymentStatus.APPROVED,
+            status = approve.status,
         )
 
         return paymentRepository.save(payment)
