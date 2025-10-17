@@ -10,6 +10,7 @@ import im.bigs.pg.application.payment.port.out.PaymentSummaryFilter
 import im.bigs.pg.domain.payment.PaymentStatus
 import im.bigs.pg.domain.payment.PaymentSummary
 import org.springframework.stereotype.Service
+import org.springframework.transaction.annotation.Transactional
 import java.time.Instant
 import java.time.ZoneOffset
 import java.util.Base64
@@ -20,6 +21,7 @@ import java.util.Base64
  * - 통계는 조회 조건과 동일한 집합을 대상으로 계산됩니다.
  */
 @Service
+@Transactional(readOnly = true)
 class QueryPaymentsService(
     private val paymentRepository: PaymentOutPort,
 ) : QueryPaymentsUseCase {
