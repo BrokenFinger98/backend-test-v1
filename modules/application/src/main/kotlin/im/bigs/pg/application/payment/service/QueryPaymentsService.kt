@@ -3,9 +3,15 @@ package im.bigs.pg.application.payment.service
 import im.bigs.pg.application.payment.port.`in`.QueryFilter
 import im.bigs.pg.application.payment.port.`in`.QueryPaymentsUseCase
 import im.bigs.pg.application.payment.port.`in`.QueryResult
+import im.bigs.pg.application.payment.port.out.PaymentOutPort
+import im.bigs.pg.application.payment.port.out.PaymentPage
+import im.bigs.pg.application.payment.port.out.PaymentQuery
+import im.bigs.pg.application.payment.port.out.PaymentSummaryFilter
+import im.bigs.pg.domain.payment.PaymentStatus
 import im.bigs.pg.domain.payment.PaymentSummary
 import org.springframework.stereotype.Service
 import java.time.Instant
+import java.time.ZoneOffset
 import java.util.Base64
 
 /**
@@ -14,7 +20,9 @@ import java.util.Base64
  * - 통계는 조회 조건과 동일한 집합을 대상으로 계산됩니다.
  */
 @Service
-class QueryPaymentsService : QueryPaymentsUseCase {
+class QueryPaymentsService(
+    private val paymentRepository: PaymentOutPort,
+) : QueryPaymentsUseCase {
     /**
      * 필터를 기반으로 결제 내역을 조회합니다.
      *
@@ -25,11 +33,44 @@ class QueryPaymentsService : QueryPaymentsUseCase {
      * @return 조회 결과(목록/통계/커서)
      */
     override fun query(filter: QueryFilter): QueryResult {
+        val (cursorInstant, cursorId) = decodeCursor(filter.cursor)
+        val cursorCreatedAt = cursorInstant?.atOffset(ZoneOffset.UTC)?.toLocalDateTime()
+
+        val status = parseStatus(filter.status)
+        val limit = filter.limit.takeIf { it > 0 } ?: DEFAULT_LIMIT
+
+        val page = paymentRepository.findBy(
+            PaymentQuery(
+                partnerId = filter.partnerId,
+                status = status,
+                from = filter.from,
+                to = filter.to,
+                limit = limit,
+                cursorCreatedAt = cursorCreatedAt,
+                cursorId = cursorId,
+            ),
+        )
+
+        val summaryProjection = paymentRepository.summary(
+            PaymentSummaryFilter(
+                partnerId = filter.partnerId,
+                status = status,
+                from = filter.from,
+                to = filter.to,
+            ),
+        )
+
+        val nextCursor = nextCursor(page)
+
         return QueryResult(
-            items = emptyList(),
-            summary = PaymentSummary(count = 0, totalAmount = java.math.BigDecimal.ZERO, totalNetAmount = java.math.BigDecimal.ZERO),
-            nextCursor = null,
-            hasNext = false,
+            items = page.items,
+            summary = PaymentSummary(
+                count = summaryProjection.count,
+                totalAmount = summaryProjection.totalAmount,
+                totalNetAmount = summaryProjection.totalNetAmount,
+            ),
+            nextCursor = nextCursor,
+            hasNext = page.hasNext,
         )
     }
 
@@ -52,5 +93,18 @@ class QueryPaymentsService : QueryPaymentsUseCase {
         } catch (e: Exception) {
             null to null
         }
+    }
+
+    private fun nextCursor(page: PaymentPage): String? {
+        if (!page.hasNext) return null
+        val nextInstant = page.nextCursorCreatedAt?.toInstant(ZoneOffset.UTC)
+        return encodeCursor(nextInstant, page.nextCursorId)
+    }
+
+    private fun parseStatus(status: String?): PaymentStatus? =
+        status?.takeIf { it.isNotBlank() }?.runCatching { PaymentStatus.valueOf(this.uppercase()) }?.getOrNull()
+
+    companion object {
+        private const val DEFAULT_LIMIT = 20
     }
 }
