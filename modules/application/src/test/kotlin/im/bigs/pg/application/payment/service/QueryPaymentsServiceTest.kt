@@ -89,7 +89,6 @@ class QueryPaymentsServiceTest {
         // when
         val result = service.query(filter)
 
-
         // then
         assertEquals(payments, result.items)
         assertEquals(5L, result.summary.count)
