@@ -44,8 +44,10 @@ class PaymentController(
             PaymentCommand(
                 partnerId = req.partnerId,
                 amount = req.amount,
-                cardBin = req.cardBin,
-                cardLast4 = req.cardLast4,
+                cardNumber = req.cardNumber,
+                cardExpiry = req.expiry,
+                birthDate = req.birthDate,
+                cardPassword = req.cardPassword,
                 productName = req.productName,
             ),
         )
