@@ -69,19 +69,22 @@
 ## 6. API 사양(요약)
 1) 결제 생성
 ```
+// TestPg: partnerId = 2, MockPg: partnerId = 1
 POST /api/v1/payments
 {
-  "partnerId": 1,
+  "partnerId": 2,
   "amount": 10000,
-  "cardBin": "123456",
-  "cardLast4": "4242",
+  "cardNumber": "1111-1111-1111-1111",
+  "birthDate": "19900101",
+  "expiry": "1227",
+  "cardPassword": "12",
   "productName": "샘플"
 }
 
 200 OK
 {
   "id": 99,
-  "partnerId": 1,
+  "partnerId": 2,
   "amount": 10000,
   "appliedFeeRate": 0.0300,
   "feeAmount": 400,
