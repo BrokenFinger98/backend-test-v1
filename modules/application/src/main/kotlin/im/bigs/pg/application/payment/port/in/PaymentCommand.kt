@@ -14,7 +14,9 @@ import java.math.BigDecimal
 data class PaymentCommand(
     val partnerId: Long,
     val amount: BigDecimal,
-    val cardBin: String? = null,
-    val cardLast4: String? = null,
+    val cardNumber: String,
+    val cardExpiry: String,
+    val birthDate: String,
+    val cardPassword: String,
     val productName: String? = null,
 )
