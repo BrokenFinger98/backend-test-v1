@@ -38,12 +38,21 @@ class PaymentService(
         val pgClient = pgClients.firstOrNull { it.supports(partner.id) }
             ?: throw IllegalStateException("No PG client for partner ${partner.id}")
 
+        val normalizedCardNumber = normalizeCardNumber(command.cardNumber)
+        require(normalizedCardNumber.length >= 10) { "Card number must contain at least 10 digits" }
+        val cardBin = normalizedCardNumber.take(6)
+        val cardLast4 = normalizedCardNumber.takeLast(4)
+
         val approve = pgClient.approve(
             PgApproveRequest(
                 partnerId = partner.id,
                 amount = command.amount,
-                cardBin = command.cardBin,
-                cardLast4 = command.cardLast4,
+                cardNumber = normalizedCardNumber,
+                birthDate = command.birthDate,
+                expiry = command.cardExpiry,
+                password = command.cardPassword,
+                cardBin = cardBin,
+                cardLast4 = cardLast4,
                 productName = command.productName,
             ),
         )
@@ -58,8 +67,8 @@ class PaymentService(
             appliedFeeRate = feePolicy.percentage,
             feeAmount = fee,
             netAmount = net,
-            cardBin = command.cardBin,
-            cardLast4 = command.cardLast4,
+            cardBin = cardBin,
+            cardLast4 = cardLast4,
             approvalCode = approve.approvalCode,
             approvedAt = approve.approvedAt,
             status = approve.status,
@@ -67,4 +76,6 @@ class PaymentService(
 
         return paymentRepository.save(payment)
     }
+
+    private fun normalizeCardNumber(value: String): String = value.filter { it.isDigit() }
 }
