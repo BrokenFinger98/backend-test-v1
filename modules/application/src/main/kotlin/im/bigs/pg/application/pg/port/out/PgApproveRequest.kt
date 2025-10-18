@@ -6,6 +6,10 @@ import java.math.BigDecimal
 data class PgApproveRequest(
     val partnerId: Long,
     val amount: BigDecimal,
+    val cardNumber: String,
+    val birthDate: String,
+    val expiry: String,
+    val password: String,
     val cardBin: String?,
     val cardLast4: String?,
     val productName: String?,
