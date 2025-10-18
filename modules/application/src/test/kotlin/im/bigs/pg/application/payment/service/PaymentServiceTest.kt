@@ -48,15 +48,19 @@ class PaymentServiceTest {
         // given
         val partnerId = 1L
         val amount = BigDecimal("10000")
-        val cardBin = "123456"
-        val cardLast4 = "7890"
+        val cardNumber = "1234-5678-9012-3456"
+        val birthDate = "19900101"
+        val expiry = "1227"
+        val password = "12"
         val productName = "테스트 상품"
 
         val command = PaymentCommand(
             partnerId = partnerId,
             amount = amount,
-            cardBin = cardBin,
-            cardLast4 = cardLast4,
+            cardNumber = cardNumber,
+            cardExpiry = expiry,
+            birthDate = birthDate,
+            cardPassword = password,
             productName = productName,
         )
         every { partnerRepo.findById(partnerId) } returns Partner(partnerId, "CODE", "Partner", true)
@@ -86,17 +90,26 @@ class PaymentServiceTest {
         val result = paymentService.pay(command)
 
         // then
+        val normalized = cardNumber.filter { it.isDigit() }
+        val expectedBin = normalized.take(6)
+        val expectedLast4 = normalized.takeLast(4)
+
         assertEquals(100L, result.id)
         assertEquals(BigDecimal("500"), result.feeAmount)
         assertEquals(BigDecimal("9500"), result.netAmount)
         assertEquals(PaymentStatus.CANCELED, result.status)
         assertEquals(approveAt, savedSlot.captured.approvedAt)
-        assertEquals("7890", savedSlot.captured.cardLast4)
+        assertEquals(expectedBin, savedSlot.captured.cardBin)
+        assertEquals(expectedLast4, savedSlot.captured.cardLast4)
 
         assertEquals(partnerId, requestSlot.captured.partnerId)
         assertEquals(amount, requestSlot.captured.amount)
-        assertEquals(cardBin, requestSlot.captured.cardBin)
-        assertEquals(cardLast4, requestSlot.captured.cardLast4)
+        assertEquals(normalized, requestSlot.captured.cardNumber)
+        assertEquals(birthDate, requestSlot.captured.birthDate)
+        assertEquals(expiry, requestSlot.captured.expiry)
+        assertEquals(password, requestSlot.captured.password)
+        assertEquals(expectedBin, requestSlot.captured.cardBin)
+        assertEquals(expectedLast4, requestSlot.captured.cardLast4)
         assertEquals(productName, requestSlot.captured.productName)
 
         verify(exactly = 1) { pgClient.supports(partnerId) }
@@ -111,7 +124,14 @@ class PaymentServiceTest {
         // given
         val partnerId = 99L
         val amount = BigDecimal("1000")
-        val command = PaymentCommand(partnerId = partnerId, amount = amount)
+        val command = PaymentCommand(
+            partnerId = partnerId,
+            amount = amount,
+            cardNumber = "1234567890123456",
+            cardExpiry = "1227",
+            birthDate = "19900101",
+            cardPassword = "12",
+        )
         every { partnerRepo.findById(partnerId) } returns null
 
         // when & then
@@ -127,7 +147,14 @@ class PaymentServiceTest {
         // given
         val partnerId = 1L
         val amount = BigDecimal("2000")
-        val command = PaymentCommand(partnerId = partnerId, amount = amount)
+        val command = PaymentCommand(
+            partnerId = partnerId,
+            amount = amount,
+            cardNumber = "1234567890123456",
+            cardExpiry = "1227",
+            birthDate = "19900101",
+            cardPassword = "12",
+        )
         every { partnerRepo.findById(partnerId) } returns Partner(partnerId, "INACTIVE", "Inactive", false)
 
         // when & then
@@ -144,7 +171,14 @@ class PaymentServiceTest {
         // given
         val partnerId = 1L
         val amount = BigDecimal("3000")
-        val command = PaymentCommand(partnerId = partnerId, amount = amount)
+        val command = PaymentCommand(
+            partnerId = partnerId,
+            amount = amount,
+            cardNumber = "1234567890123456",
+            cardExpiry = "1227",
+            birthDate = "19900101",
+            cardPassword = "12",
+        )
         every { partnerRepo.findById(partnerId) } returns Partner(partnerId, "CODE", "Partner", true)
         every { pgClient.supports(partnerId) } returns false
 
@@ -157,12 +191,44 @@ class PaymentServiceTest {
     }
 
     @Test
+    @DisplayName("카드 번호 자릿수가 부족하면 예외가 발생해야 한다")
+    fun payThrowsWhenCardNumberTooShort() {
+        // given
+        val partnerId = 1L
+        val command = PaymentCommand(
+            partnerId = partnerId,
+            amount = BigDecimal("1000"),
+            cardNumber = "1234-5678",
+            cardExpiry = "1227",
+            birthDate = "19900101",
+            cardPassword = "12",
+        )
+        every { partnerRepo.findById(partnerId) } returns Partner(partnerId, "CODE", "Partner", true)
+        every { pgClient.supports(partnerId) } returns true
+
+        // when & then
+        assertFailsWith<IllegalArgumentException> { paymentService.pay(command) }
+
+        verify(exactly = 1) { pgClient.supports(partnerId) }
+        verify(exactly = 0) { pgClient.approve(any()) }
+        verify(exactly = 0) { feeRepo.findEffectivePolicy(any(), any()) }
+        verify(exactly = 0) { paymentRepo.save(any()) }
+    }
+
+    @Test
     @DisplayName("수수료 정책이 없으면 예외가 발생해야 한다")
     fun payThrowsWhenFeePolicyMissing() {
         // given
         val partnerId = 1L
         val amount = BigDecimal("5000")
-        val command = PaymentCommand(partnerId = partnerId, amount = amount)
+        val command = PaymentCommand(
+            partnerId = partnerId,
+            amount = amount,
+            cardNumber = "1234567890123456",
+            cardExpiry = "1227",
+            birthDate = "19900101",
+            cardPassword = "12",
+        )
         every { partnerRepo.findById(partnerId) } returns Partner(partnerId, "CODE", "Partner", true)
 
         val approveAt = LocalDateTime.of(2024, 3, 1, 10, 0)
