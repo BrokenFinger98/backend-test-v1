@@ -46,31 +46,31 @@ class PaymentControllerDocsTest : RestDocsSupport() {
     @DisplayName("POST /api/v1/payments 문서화")
     fun create() {
         val payment = Payment(
-            id = 100L,
-            partnerId = 1L,
-            amount = BigDecimal("10000"),
-            appliedFeeRate = BigDecimal("0.0300"),
-            feeAmount = BigDecimal("300"),
-            netAmount = BigDecimal("9700"),
-            cardBin = "123456",
-            cardLast4 = "7890",
-            approvalCode = "APP-001",
-            approvedAt = LocalDateTime.of(2024, 1, 1, 12, 0),
+            id = 3L,
+            partnerId = 2L,
+            amount = BigDecimal("30000"),
+            appliedFeeRate = BigDecimal("0.030000"),
+            feeAmount = BigDecimal("1000"),
+            netAmount = BigDecimal("29000"),
+            cardBin = "111111",
+            cardLast4 = "1111",
+            approvalCode = "10192333",
+            approvedAt = LocalDateTime.of(2025, 10, 19, 14, 31, 56),
             status = PaymentStatus.APPROVED,
-            createdAt = LocalDateTime.of(2024, 1, 1, 12, 1),
-            updatedAt = LocalDateTime.of(2024, 1, 1, 12, 1),
+            createdAt = LocalDateTime.of(2025, 10, 19, 23, 31, 56),
+            updatedAt = LocalDateTime.of(2025, 10, 19, 23, 31, 56),
         )
 
         every { paymentUseCase.pay(any()) } returns payment
 
         val request = CreatePaymentRequest(
-            partnerId = 1L,
-            amount = BigDecimal("10000"),
-            cardNumber = "1234-5678-9012-3456",
+            partnerId = 2L,
+            amount = BigDecimal("30000"),
+            cardNumber = "1111-1111-1111-1111",
             birthDate = "19900101",
             expiry = "1227",
             cardPassword = "12",
-            productName = "샘플 상품",
+            productName = "샘플",
         )
 
         mockMvc.perform(
@@ -100,7 +100,7 @@ class PaymentControllerDocsTest : RestDocsSupport() {
                         fieldWithPath("appliedFeeRate").description("적용 수수료율"),
                         fieldWithPath("feeAmount").description("수수료 금액"),
                         fieldWithPath("netAmount").description("정산 금액"),
-                        fieldWithPath("cardLast4").optional().description("카드 마지막 4자리"),
+                        fieldWithPath("cardLast4").description("카드 마지막 4자리"),
                         fieldWithPath("approvalCode").description("PG 승인 코드"),
                         fieldWithPath("approvedAt").description("승인 시각"),
                         fieldWithPath("status").description("결제 상태"),
@@ -114,26 +114,30 @@ class PaymentControllerDocsTest : RestDocsSupport() {
     @DisplayName("GET /api/v1/payments 문서화")
     fun query() {
         val payment = Payment(
-            id = 200L,
+            id = 1L,
             partnerId = 2L,
-            amount = BigDecimal("5000"),
-            appliedFeeRate = BigDecimal("0.0250"),
-            feeAmount = BigDecimal("125"),
-            netAmount = BigDecimal("4875"),
-            cardBin = "654321",
-            cardLast4 = "4321",
-            approvalCode = "APP-QUERY",
-            approvedAt = LocalDateTime.of(2024, 2, 2, 10, 0),
+            amount = BigDecimal("30000"),
+            appliedFeeRate = BigDecimal("0.030000"),
+            feeAmount = BigDecimal("1000"),
+            netAmount = BigDecimal("29000"),
+            cardBin = "111111",
+            cardLast4 = "1111",
+            approvalCode = "10193622",
+            approvedAt = LocalDateTime.of(2025, 10, 19, 14, 31, 54),
             status = PaymentStatus.APPROVED,
-            createdAt = LocalDateTime.of(2024, 2, 2, 10, 5),
-            updatedAt = LocalDateTime.of(2024, 2, 2, 10, 5),
+            createdAt = LocalDateTime.of(2025, 10, 19, 23, 31, 54),
+            updatedAt = LocalDateTime.of(2025, 10, 19, 23, 31, 54),
         )
-        val summary = PaymentSummary(count = 1, totalAmount = payment.amount, totalNetAmount = payment.netAmount)
+        val summary = PaymentSummary(
+            count = 3,
+            totalAmount = BigDecimal("90000"),
+            totalNetAmount = BigDecimal("87000"),
+        )
         every { queryPaymentsUseCase.query(any()) } returns QueryResult(
             items = listOf(payment),
             summary = summary,
-            nextCursor = "cursor-token",
-            hasNext = true,
+            nextCursor = null,
+            hasNext = false,
         )
 
         mockMvc.perform(
