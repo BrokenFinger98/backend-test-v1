@@ -1,9 +1,9 @@
 package im.bigs.pg.api.payment
 
-import im.bigs.pg.api.payment.dto.CreatePaymentRequest
-import im.bigs.pg.api.payment.dto.PaymentResponse
-import im.bigs.pg.api.payment.dto.QueryResponse
-import im.bigs.pg.api.payment.dto.Summary
+import im.bigs.pg.api.payment.dto.request.CreatePaymentRequest
+import im.bigs.pg.api.payment.dto.response.PaymentResponse
+import im.bigs.pg.api.payment.dto.response.QueryResponse
+import im.bigs.pg.api.payment.dto.response.Summary
 import im.bigs.pg.application.payment.port.`in`.PaymentCommand
 import im.bigs.pg.application.payment.port.`in`.PaymentUseCase
 import im.bigs.pg.application.payment.port.`in`.QueryFilter
