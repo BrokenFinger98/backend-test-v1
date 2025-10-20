@@ -16,6 +16,7 @@ spring-boot-starter-jpa = { module = "org.springframework.boot:spring-boot-start
 spring-boot-starter-validation = { module = "org.springframework.boot:spring-boot-starter-validation" }
 spring-boot-starter-test = { module = "org.springframework.boot:spring-boot-starter-test" }
 spring-boot-starter-logging = { module = "org.springframework.boot:spring-boot-starter-logging" }
+spring-restdocs-mockmvc = { module = "org.springframework.restdocs:spring-restdocs-mockmvc", version = "3.0.2" }
 
 spring-context = { module = "org.springframework:spring-context" }
 spring-mockk = { module = "io.mockk:mockk", version.ref = "mockk" }

@@ -19,4 +19,5 @@ dependencies {
     }
     testImplementation(libs.spring.mockk)
     testImplementation(libs.database.h2)
+    testImplementation(libs.spring.restdocs.mockmvc)
 }
