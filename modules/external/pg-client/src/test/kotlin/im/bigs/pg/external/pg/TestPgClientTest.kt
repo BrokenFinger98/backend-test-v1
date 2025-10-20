@@ -3,7 +3,11 @@ package im.bigs.pg.external.pg
 import com.fasterxml.jackson.databind.ObjectMapper
 import im.bigs.pg.application.pg.port.out.PgApproveRequest
 import im.bigs.pg.domain.payment.PaymentStatus
-import im.bigs.pg.external.pg.client.TestPgClient
+import im.bigs.pg.external.pg.client.testpg.TestPgClient
+import im.bigs.pg.external.pg.client.testpg.crypto.AesGcmEncryptor
+import im.bigs.pg.external.pg.client.testpg.payload.TestPgRequestPayloadFactory
+import im.bigs.pg.external.pg.client.testpg.registry.TestPgClientRegistry
+import im.bigs.pg.external.pg.client.testpg.transport.TestPgRestInvoker
 import im.bigs.pg.external.pg.config.TestPgProperties
 import im.bigs.pg.external.pg.exception.PgClientException
 import okhttp3.mockwebserver.MockResponse
@@ -61,7 +65,7 @@ class TestPgClientTest {
             )
         }
 
-        val testClient = TestPgClient(properties, objectMapper, RestClient.builder())
+        val testClient = testClient(properties)
 
         server.enqueue(
             MockResponse()
@@ -133,7 +137,7 @@ class TestPgClientTest {
             )
         }
 
-        val testClient = TestPgClient(properties, objectMapper, RestClient.builder())
+        val testClient = testClient(properties)
 
         server.enqueue(
             MockResponse()
@@ -168,5 +172,14 @@ class TestPgClientTest {
         assertEquals("TEST_PG", ex.clientType)
         assertTrue(ex.message.contains("STOLEN_OR_LOST"))
         server.takeRequest()
+    }
+
+    private fun testClient(properties: TestPgProperties): TestPgClient {
+        val builder = RestClient.builder()
+        val registry = TestPgClientRegistry(properties)
+        val encryptor = AesGcmEncryptor()
+        val payloadFactory = TestPgRequestPayloadFactory(objectMapper, encryptor)
+        val restInvoker = TestPgRestInvoker(properties, builder)
+        return TestPgClient(registry, payloadFactory, restInvoker)
     }
 }
