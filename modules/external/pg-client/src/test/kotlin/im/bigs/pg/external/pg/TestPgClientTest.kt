@@ -10,11 +10,11 @@ import okhttp3.mockwebserver.MockResponse
 import okhttp3.mockwebserver.MockWebServer
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.BeforeEach
+import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
 import org.springframework.web.client.RestClient
 import java.math.BigDecimal
 import java.time.LocalDateTime
-import org.junit.jupiter.api.DisplayName
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertTrue
@@ -52,11 +52,13 @@ class TestPgClientTest {
 
         val properties = TestPgProperties().apply {
             this.baseUrl = baseUrl
-            clients = listOf(TestPgProperties.Client().apply {
-                this.partnerId = partnerId
-                this.apiKey = apiKey
-                this.iv = iv
-            })
+            clients = listOf(
+                TestPgProperties.Client().apply {
+                    this.partnerId = partnerId
+                    this.apiKey = apiKey
+                    this.iv = iv
+                },
+            )
         }
 
         val testClient = TestPgClient(properties, objectMapper, RestClient.builder())
@@ -122,11 +124,13 @@ class TestPgClientTest {
 
         val properties = TestPgProperties().apply {
             this.baseUrl = baseUrl
-            clients = listOf(TestPgProperties.Client().apply {
-                this.partnerId = partnerId
-                this.apiKey = apiKey
-                this.iv = iv
-            })
+            clients = listOf(
+                TestPgProperties.Client().apply {
+                    this.partnerId = partnerId
+                    this.apiKey = apiKey
+                    this.iv = iv
+                },
+            )
         }
 
         val testClient = TestPgClient(properties, objectMapper, RestClient.builder())

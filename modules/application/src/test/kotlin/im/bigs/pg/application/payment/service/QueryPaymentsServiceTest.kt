@@ -24,10 +24,10 @@ import java.time.LocalDateTime
 import java.time.ZoneOffset
 import java.util.Base64
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import kotlin.test.assertFalse
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
-import kotlin.test.assertFailsWith
 
 @ExtendWith(MockKExtension::class)
 class QueryPaymentsServiceTest {
