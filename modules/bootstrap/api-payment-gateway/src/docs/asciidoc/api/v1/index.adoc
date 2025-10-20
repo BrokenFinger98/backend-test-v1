@@ -1,0 +1,16 @@
+ifndef::snippets[]
+:snippets: ../../build/generated-snippets
+endif::[]
+= REST API Reference
+:doctype: book
+:icons: font
+:source-highlighter: highlightjs
+:toc: left
+:toclevels: 2
+:sectlinks:
+
+== Introduction
+
+본 문서는 빅스페이먼츠 과제 전형의 요구 사항에 해당하는 API 문서입니다.
+
+include::payment/payments.adoc[]

@@ -1,0 +1,18 @@
+[[payments-create]]
+===  결제 생성
+
+==== HTTP Request
+
+include::{snippets}/payments-create/http-request.adoc[]
+
+==== Request Fields
+
+include::{snippets}/payments-create/request-fields.adoc[]
+
+==== HTTP Response
+
+include::{snippets}/payments-create/http-response.adoc[]
+
+==== Response Fields
+
+include::{snippets}/payments-create/response-fields.adoc[]

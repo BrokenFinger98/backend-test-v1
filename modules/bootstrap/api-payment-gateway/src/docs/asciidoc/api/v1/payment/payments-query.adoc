@@ -1,0 +1,18 @@
+[[payments-query]]
+===  결제 조회
+
+==== HTTP Request
+
+include::{snippets}/payments-query/http-request.adoc[]
+
+==== Query Parameters
+
+include::{snippets}/payments-query/query-parameters.adoc[]
+
+==== HTTP Response
+
+include::{snippets}/payments-query/http-response.adoc[]
+
+==== Response Fields
+
+include::{snippets}/payments-query/response-fields.adoc[]

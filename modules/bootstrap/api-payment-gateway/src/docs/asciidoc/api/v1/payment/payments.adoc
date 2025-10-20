@@ -1,0 +1,8 @@
+[[Payment-API]]
+== Payment API
+
+include::payments-create.adoc[]
+
+'''
+
+include::payments-query.adoc[]
