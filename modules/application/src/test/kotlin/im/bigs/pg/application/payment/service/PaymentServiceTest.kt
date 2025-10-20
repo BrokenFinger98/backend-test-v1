@@ -54,16 +54,16 @@ class PaymentServiceTest {
         val password = "12"
         val productName = "테스트 상품"
 
-        val command = PaymentCommand(
+        val command = paymentCommand(
             partnerId = partnerId,
             amount = amount,
             cardNumber = cardNumber,
-            cardExpiry = expiry,
             birthDate = birthDate,
-            cardPassword = password,
+            expiry = expiry,
+            password = password,
             productName = productName,
         )
-        every { partnerRepo.findById(partnerId) } returns Partner(partnerId, "CODE", "Partner", true)
+        every { partnerRepo.findById(partnerId) } returns activePartner(partnerId)
 
         val approveAt = LocalDateTime.of(2024, 2, 1, 12, 0)
         val requestSlot = slot<PgApproveRequest>()
@@ -74,8 +74,7 @@ class PaymentServiceTest {
             status = PaymentStatus.CANCELED,
         )
 
-        val policy = FeePolicy(
-            id = 5L,
+        val policy = feePolicy(
             partnerId = partnerId,
             effectiveFrom = approveAt.minusDays(1),
             percentage = BigDecimal("0.0300"),
@@ -124,13 +123,10 @@ class PaymentServiceTest {
         // given
         val partnerId = 99L
         val amount = BigDecimal("1000")
-        val command = PaymentCommand(
+        val command = paymentCommand(
             partnerId = partnerId,
             amount = amount,
             cardNumber = "1234567890123456",
-            cardExpiry = "1227",
-            birthDate = "19900101",
-            cardPassword = "12",
         )
         every { partnerRepo.findById(partnerId) } returns null
 
@@ -155,7 +151,7 @@ class PaymentServiceTest {
             birthDate = "19900101",
             cardPassword = "12",
         )
-        every { partnerRepo.findById(partnerId) } returns Partner(partnerId, "INACTIVE", "Inactive", false)
+        every { partnerRepo.findById(partnerId) } returns inactivePartner(partnerId)
 
         // when & then
         assertFailsWith<IllegalArgumentException> { paymentService.pay(command) }
@@ -171,15 +167,12 @@ class PaymentServiceTest {
         // given
         val partnerId = 1L
         val amount = BigDecimal("3000")
-        val command = PaymentCommand(
+        val command = paymentCommand(
             partnerId = partnerId,
             amount = amount,
             cardNumber = "1234567890123456",
-            cardExpiry = "1227",
-            birthDate = "19900101",
-            cardPassword = "12",
         )
-        every { partnerRepo.findById(partnerId) } returns Partner(partnerId, "CODE", "Partner", true)
+        every { partnerRepo.findById(partnerId) } returns activePartner(partnerId)
         every { pgClient.supports(partnerId) } returns false
 
         // when & then
@@ -195,15 +188,12 @@ class PaymentServiceTest {
     fun payThrowsWhenCardNumberTooShort() {
         // given
         val partnerId = 1L
-        val command = PaymentCommand(
+        val command = paymentCommand(
             partnerId = partnerId,
             amount = BigDecimal("1000"),
             cardNumber = "1234-5678",
-            cardExpiry = "1227",
-            birthDate = "19900101",
-            cardPassword = "12",
         )
-        every { partnerRepo.findById(partnerId) } returns Partner(partnerId, "CODE", "Partner", true)
+        every { partnerRepo.findById(partnerId) } returns activePartner(partnerId)
         every { pgClient.supports(partnerId) } returns true
 
         // when & then
@@ -221,15 +211,12 @@ class PaymentServiceTest {
         // given
         val partnerId = 1L
         val amount = BigDecimal("5000")
-        val command = PaymentCommand(
+        val command = paymentCommand(
             partnerId = partnerId,
             amount = amount,
             cardNumber = "1234567890123456",
-            cardExpiry = "1227",
-            birthDate = "19900101",
-            cardPassword = "12",
         )
-        every { partnerRepo.findById(partnerId) } returns Partner(partnerId, "CODE", "Partner", true)
+        every { partnerRepo.findById(partnerId) } returns activePartner(partnerId)
 
         val approveAt = LocalDateTime.of(2024, 3, 1, 10, 0)
         every { pgClient.supports(partnerId) } returns true
@@ -248,3 +235,39 @@ class PaymentServiceTest {
         verify(exactly = 0) { paymentRepo.save(any()) }
     }
 }
+
+private fun paymentCommand(
+    partnerId: Long,
+    amount: BigDecimal,
+    cardNumber: String,
+    birthDate: String = "19900101",
+    expiry: String = "1227",
+    password: String = "12",
+    productName: String? = null,
+): PaymentCommand =
+    PaymentCommand(
+        partnerId = partnerId,
+        amount = amount,
+        cardNumber = cardNumber,
+        cardExpiry = expiry,
+        birthDate = birthDate,
+        cardPassword = password,
+        productName = productName,
+    )
+
+private fun activePartner(id: Long) = Partner(id, "CODE$id", "Partner$id", true)
+
+private fun inactivePartner(id: Long) = Partner(id, "CODE$id", "Partner$id", false)
+
+private fun feePolicy(
+    partnerId: Long,
+    effectiveFrom: LocalDateTime,
+    percentage: BigDecimal,
+    fixedFee: BigDecimal,
+) = FeePolicy(
+    id = null,
+    partnerId = partnerId,
+    effectiveFrom = effectiveFrom,
+    percentage = percentage,
+    fixedFee = fixedFee,
+)
