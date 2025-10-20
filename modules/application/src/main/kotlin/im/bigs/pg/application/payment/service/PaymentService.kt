@@ -34,8 +34,9 @@ class PaymentService(
 ) : PaymentUseCase {
     /**
      * 결제 승인/수수료 계산/저장을 순차적으로 수행합니다.
-     * - 현재 예시 구현은 하드코드된 수수료(3% + 100)로 계산합니다.
-     * - 과제: 제휴사별 수수료 정책을 적용하도록 개선해 보세요.
+     * - 제휴사 유효성 검증 후 지원 PG 클라이언트를 선택해 승인을 요청합니다.
+     * - 승인 결과 시점에 맞는 제휴사 수수료 정책을 조회해 정률/정액 수수료를 계산합니다.
+     * - 계산된 스냅샷을 영속 계층에 저장하고 저장된 결과를 반환합니다.
      */
     override fun pay(command: PaymentCommand): Payment {
         val partner = findActivePartner(command.partnerId)
