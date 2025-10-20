@@ -23,7 +23,9 @@ import java.time.LocalDateTime
 import java.time.ZoneOffset
 import java.util.Base64
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertNull
+import kotlin.test.assertTrue
 
 @ExtendWith(MockKExtension::class)
 class QueryPaymentsServiceTest {
@@ -59,18 +61,11 @@ class QueryPaymentsServiceTest {
         val nextCursorCreatedAt = LocalDateTime.of(2024, 1, 3, 12, 30)
         val nextCursorId = 55L
         val payments = listOf(
-            Payment(
+            payment(
                 id = 10L,
                 partnerId = partnerId,
                 amount = BigDecimal("1000"),
-                appliedFeeRate = BigDecimal("0.0300"),
-                feeAmount = BigDecimal("30"),
-                netAmount = BigDecimal("970"),
-                cardLast4 = "1234",
-                cardBin = "111111",
                 approvalCode = "APP-1",
-                approvedAt = LocalDateTime.of(2024, 1, 1, 10, 0),
-                status = PaymentStatus.APPROVED,
             ),
         )
 
@@ -94,12 +89,8 @@ class QueryPaymentsServiceTest {
         assertEquals(5L, result.summary.count)
         assertEquals(BigDecimal("5000"), result.summary.totalAmount)
         assertEquals(BigDecimal("4850"), result.summary.totalNetAmount)
-        assertEquals(true, result.hasNext)
-
-        val expectedCursor = Base64.getUrlEncoder().withoutPadding().encodeToString(
-            "${nextCursorCreatedAt.toInstant(ZoneOffset.UTC).toEpochMilli()}:$nextCursorId".toByteArray(),
-        )
-        assertEquals(expectedCursor, result.nextCursor)
+        assertTrue(result.hasNext)
+        assertEquals(encodeCursor(nextCursorCreatedAt, nextCursorId), result.nextCursor)
 
         val query = captureQuery.captured
         assertEquals(partnerId, query.partnerId)
@@ -126,9 +117,7 @@ class QueryPaymentsServiceTest {
         // given
         val cursorCreatedAt = LocalDateTime.of(2024, 1, 5, 15, 45)
         val cursorId = 99L
-        val cursorToken = Base64.getUrlEncoder().withoutPadding().encodeToString(
-            "${cursorCreatedAt.toInstant(ZoneOffset.UTC).toEpochMilli()}:$cursorId".toByteArray(),
-        )
+        val cursorToken = encodeCursor(cursorCreatedAt, cursorId)
 
         val filter = QueryFilter(
             cursor = cursorToken,
@@ -157,9 +146,35 @@ class QueryPaymentsServiceTest {
         assertEquals(cursorCreatedAt, captureQuery.captured.cursorCreatedAt)
         assertEquals(cursorId, captureQuery.captured.cursorId)
         assertNull(result.nextCursor)
-        assertEquals(false, result.hasNext)
+        assertFalse(result.hasNext)
 
         verify(exactly = 1) { paymentRepository.findBy(any()) }
         verify(exactly = 1) { paymentRepository.summary(any()) }
     }
 }
+
+private fun encodeCursor(createdAt: LocalDateTime, id: Long): String =
+    Base64.getUrlEncoder().withoutPadding().encodeToString(
+        "${createdAt.toInstant(ZoneOffset.UTC).toEpochMilli()}:$id".toByteArray(),
+    )
+
+private fun payment(
+    id: Long,
+    partnerId: Long,
+    amount: BigDecimal,
+    approvalCode: String,
+    approvedAt: LocalDateTime = LocalDateTime.of(2024, 1, 1, 10, 0),
+): Payment =
+    Payment(
+        id = id,
+        partnerId = partnerId,
+        amount = amount,
+        appliedFeeRate = BigDecimal("0.0300"),
+        feeAmount = BigDecimal("30"),
+        netAmount = amount - BigDecimal("30"),
+        cardLast4 = "1234",
+        cardBin = "111111",
+        approvalCode = approvalCode,
+        approvedAt = approvedAt,
+        status = PaymentStatus.APPROVED,
+    )
