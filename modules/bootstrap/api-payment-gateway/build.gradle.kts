@@ -17,6 +17,7 @@ dependencies {
     testImplementation(libs.spring.boot.starter.test) {
         exclude(module = "mockito-core")
     }
+    testImplementation(libs.mockk.core)
     testImplementation(libs.spring.mockk)
     testImplementation(libs.database.h2)
     testImplementation(libs.spring.restdocs.mockmvc)

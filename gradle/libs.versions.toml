@@ -19,7 +19,8 @@ spring-boot-starter-logging = { module = "org.springframework.boot:spring-boot-s
 spring-restdocs-mockmvc = { module = "org.springframework.restdocs:spring-restdocs-mockmvc", version = "3.0.2" }
 
 spring-context = { module = "org.springframework:spring-context" }
-spring-mockk = { module = "io.mockk:mockk", version.ref = "mockk" }
+mockk-core = { module = "io.mockk:mockk", version.ref = "mockk" }
+spring-mockk = { module = "com.ninja-squad:springmockk", version = "4.0.2" }
 
 database-h2 = { module = "com.h2database:h2" }
 database-mariadb = { module = "org.mariadb.jdbc:mariadb-java-client" }
