@@ -45,6 +45,7 @@ class PaymentControllerDocsTest : RestDocsSupport() {
     @Test
     @DisplayName("POST /api/v1/payments 문서화")
     fun create() {
+        // given
         val payment = Payment(
             id = 3L,
             partnerId = 2L,
@@ -73,6 +74,7 @@ class PaymentControllerDocsTest : RestDocsSupport() {
             productName = "샘플",
         )
 
+        // when & then
         mockMvc.perform(
             post("/api/v1/payments")
                 .contentType(MediaType.APPLICATION_JSON)
@@ -113,6 +115,7 @@ class PaymentControllerDocsTest : RestDocsSupport() {
     @Test
     @DisplayName("GET /api/v1/payments 문서화")
     fun query() {
+        // given
         val payment = Payment(
             id = 1L,
             partnerId = 2L,
@@ -140,6 +143,7 @@ class PaymentControllerDocsTest : RestDocsSupport() {
             hasNext = false,
         )
 
+        // when & then
         mockMvc.perform(
             get("/api/v1/payments")
                 .param("partnerId", "2")
