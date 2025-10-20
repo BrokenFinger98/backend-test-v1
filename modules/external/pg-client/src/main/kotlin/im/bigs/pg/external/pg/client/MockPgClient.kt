@@ -1,4 +1,4 @@
-package im.bigs.pg.external.pg
+package im.bigs.pg.external.pg.client
 
 import im.bigs.pg.application.pg.port.out.PgApproveRequest
 import im.bigs.pg.application.pg.port.out.PgApproveResult
