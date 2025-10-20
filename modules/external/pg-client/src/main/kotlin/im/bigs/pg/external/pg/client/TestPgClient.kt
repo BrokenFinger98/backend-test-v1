@@ -6,9 +6,15 @@ import im.bigs.pg.application.pg.port.out.PgApproveResult
 import im.bigs.pg.application.pg.port.out.PgClientOutPort
 import im.bigs.pg.domain.payment.PaymentStatus
 import im.bigs.pg.external.pg.config.TestPgProperties
+import im.bigs.pg.external.pg.exception.pgConfigurationMissing
+import im.bigs.pg.external.pg.exception.pgHttpError
+import im.bigs.pg.external.pg.exception.pgNetworkError
+import im.bigs.pg.external.pg.exception.pgUnexpectedError
 import org.springframework.http.MediaType
 import org.springframework.stereotype.Component
 import org.springframework.web.client.RestClient
+import org.springframework.web.client.RestClientException
+import org.springframework.web.client.RestClientResponseException
 import java.math.BigDecimal
 import java.time.LocalDateTime
 import java.util.Base64
@@ -18,6 +24,7 @@ import javax.crypto.spec.GCMParameterSpec
 import javax.crypto.spec.SecretKeySpec
 
 private const val GCM_TAG_LENGTH_BITS = 128
+private const val CLIENT_TYPE = "TEST_PG"
 
 @Component
 class TestPgClient(
@@ -41,7 +48,7 @@ class TestPgClient(
 
     private fun clientConfig(partnerId: Long): ClientConfig {
         val rawClient = properties.findClient(partnerId)
-            ?: throw IllegalStateException("No PG configuration for partner $partnerId")
+            ?: throw pgConfigurationMissing(CLIENT_TYPE, partnerId)
         return ClientConfig.from(rawClient)
     }
 
@@ -61,14 +68,22 @@ class TestPgClient(
     }
 
     private fun requestApproval(client: ClientConfig, payload: EncryptedPayload): TestPgSuccessResponse {
-        val response = restClient.post()
-            .uri(PAY_PATH)
-            .contentType(MediaType.APPLICATION_JSON)
-            .header(API_KEY_HEADER, client.headerValue())
-            .body(payload.asRequestBody())
-            .retrieve()
-            .body(TestPgSuccessResponse::class.java)
-        return response ?: throw IllegalStateException("Empty response from PG")
+        return try {
+            val response = restClient.post()
+                .uri(PAY_PATH)
+                .contentType(MediaType.APPLICATION_JSON)
+                .header(API_KEY_HEADER, client.headerValue())
+                .body(payload.asRequestBody())
+                .retrieve()
+                .body(TestPgSuccessResponse::class.java)
+            response ?: throw pgUnexpectedError(CLIENT_TYPE, NullPointerException("Empty response from PG"))
+        } catch (ex: RestClientResponseException) {
+            throw pgHttpError(CLIENT_TYPE, ex.statusCode.value(), ex.responseBodyAsString, ex)
+        } catch (ex: RestClientException) {
+            throw pgNetworkError(CLIENT_TYPE, ex)
+        } catch (ex: Exception) {
+            throw pgUnexpectedError(CLIENT_TYPE, ex)
+        }
     }
 
     companion object {

@@ -5,6 +5,7 @@ import im.bigs.pg.application.pg.port.out.PgApproveRequest
 import im.bigs.pg.domain.payment.PaymentStatus
 import im.bigs.pg.external.pg.client.TestPgClient
 import im.bigs.pg.external.pg.config.TestPgProperties
+import im.bigs.pg.external.pg.exception.PgClientException
 import okhttp3.mockwebserver.MockResponse
 import okhttp3.mockwebserver.MockWebServer
 import org.junit.jupiter.api.AfterEach
@@ -14,7 +15,6 @@ import org.springframework.web.client.RestClient
 import java.math.BigDecimal
 import java.time.LocalDateTime
 import org.junit.jupiter.api.DisplayName
-import org.springframework.web.client.RestClientResponseException
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertTrue
@@ -159,8 +159,10 @@ class TestPgClientTest {
         )
 
         // when && then
-        val ex = assertFailsWith<RestClientResponseException> { testClient.approve(request) }
-        assertEquals(422, ex.statusCode.value())
+        val ex = assertFailsWith<PgClientException.HttpError> { testClient.approve(request) }
+        assertEquals(422, ex.statusCode)
+        assertEquals("TEST_PG", ex.clientType)
+        assertTrue(ex.message.contains("STOLEN_OR_LOST"))
         server.takeRequest()
     }
 }
