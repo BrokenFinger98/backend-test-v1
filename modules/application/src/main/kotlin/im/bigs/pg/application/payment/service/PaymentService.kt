@@ -7,10 +7,14 @@ import im.bigs.pg.application.payment.port.`in`.PaymentUseCase
 import im.bigs.pg.application.payment.port.out.PaymentOutPort
 import im.bigs.pg.application.pg.port.out.PgApproveRequest
 import im.bigs.pg.application.pg.port.out.PgClientOutPort
+import im.bigs.pg.application.pg.port.out.PgApproveResult
 import im.bigs.pg.domain.calculation.FeeCalculator
+import im.bigs.pg.domain.partner.FeePolicy
 import im.bigs.pg.domain.payment.Payment
+import im.bigs.pg.domain.partner.Partner
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
+import java.time.LocalDateTime
 
 /**
  * 결제 생성 유스케이스 구현체.
@@ -31,51 +35,81 @@ class PaymentService(
      * - 과제: 제휴사별 수수료 정책을 적용하도록 개선해 보세요.
      */
     override fun pay(command: PaymentCommand): Payment {
-        val partner = partnerRepository.findById(command.partnerId)
-            ?: throw IllegalArgumentException("Partner not found: ${command.partnerId}")
-        require(partner.active) { "Partner is inactive: ${partner.id}" }
-
-        val pgClient = pgClients.firstOrNull { it.supports(partner.id) }
-            ?: throw IllegalStateException("No PG client for partner ${partner.id}")
-
-        val normalizedCardNumber = normalizeCardNumber(command.cardNumber)
-        require(normalizedCardNumber.length >= 10) { "Card number must contain at least 10 digits" }
-        val cardBin = normalizedCardNumber.take(6)
-        val cardLast4 = normalizedCardNumber.takeLast(4)
-
-        val approve = pgClient.approve(
-            PgApproveRequest(
-                partnerId = partner.id,
-                amount = command.amount,
-                cardNumber = normalizedCardNumber,
-                birthDate = command.birthDate,
-                expiry = command.cardExpiry,
-                password = command.cardPassword,
-                cardBin = cardBin,
-                cardLast4 = cardLast4,
-                productName = command.productName,
-            ),
-        )
-
-        val feePolicy = feePolicyRepository.findEffectivePolicy(partner.id, approve.approvedAt)
-            ?: throw IllegalArgumentException("Fee Policy not found: ${partner.id}")
-
-        val (fee, net) = FeeCalculator.calculateFee(command.amount, feePolicy.percentage, feePolicy.fixedFee)
-        val payment = Payment(
-            partnerId = partner.id,
-            amount = command.amount,
-            appliedFeeRate = feePolicy.percentage,
-            feeAmount = fee,
-            netAmount = net,
-            cardBin = cardBin,
-            cardLast4 = cardLast4,
-            approvalCode = approve.approvalCode,
-            approvedAt = approve.approvedAt,
-            status = approve.status,
-        )
-
-        return paymentRepository.save(payment)
+        val partner = findActivePartner(command.partnerId)
+        val pgClient = selectPgClient(partner.id)
+        val card = CardDetails.from(command.cardNumber)
+        val approval = pgClient.approve(command.toPgApproveRequest(partner.id, card))
+        val policy = fetchPolicy(partner.id, approval.approvedAt)
+        val snapshot = command.toPaymentSnapshot(partner.id, card, approval, policy)
+        return paymentRepository.save(snapshot)
     }
 
-    private fun normalizeCardNumber(value: String): String = value.filter { it.isDigit() }
+    private fun findActivePartner(partnerId: Long): Partner {
+        val partner = partnerRepository.findById(partnerId)
+            ?: throw IllegalArgumentException("Partner not found: $partnerId")
+        require(partner.active) { "Partner is inactive: ${partner.id}" }
+        return partner
+    }
+
+    private fun selectPgClient(partnerId: Long): PgClientOutPort =
+        pgClients.firstOrNull { it.supports(partnerId) }
+            ?: throw IllegalStateException("No PG client for partner $partnerId")
+
+    private fun fetchPolicy(partnerId: Long, approvedAt: LocalDateTime): FeePolicy =
+        feePolicyRepository.findEffectivePolicy(partnerId, approvedAt)
+            ?: throw IllegalArgumentException("Fee Policy not found: $partnerId")
+
+    private fun PaymentCommand.toPgApproveRequest(partnerId: Long, card: CardDetails): PgApproveRequest =
+        PgApproveRequest(
+            partnerId = partnerId,
+            amount = amount,
+            cardNumber = card.normalized,
+            birthDate = birthDate,
+            expiry = cardExpiry,
+            password = cardPassword,
+            cardBin = card.bin,
+            cardLast4 = card.last4,
+            productName = productName,
+        )
+
+    private fun PaymentCommand.toPaymentSnapshot(
+        partnerId: Long,
+        card: CardDetails,
+        approval: PgApproveResult,
+        policy: FeePolicy,
+    ): Payment {
+        val (feeAmount, netAmount) = FeeCalculator.calculateFee(amount, policy.percentage, policy.fixedFee)
+        return Payment(
+            partnerId = partnerId,
+            amount = amount,
+            appliedFeeRate = policy.percentage,
+            feeAmount = feeAmount,
+            netAmount = netAmount,
+            cardBin = card.bin,
+            cardLast4 = card.last4,
+            approvalCode = approval.approvalCode,
+            approvedAt = approval.approvedAt,
+            status = approval.status,
+        )
+    }
+
+    private data class CardDetails(
+        val normalized: String,
+        val bin: String,
+        val last4: String,
+    ) {
+        companion object {
+            private const val MIN_DIGITS = 10
+
+            fun from(raw: String): CardDetails {
+                val digits = raw.filter(Char::isDigit)
+                require(digits.length >= MIN_DIGITS) { "Card number must contain at least $MIN_DIGITS digits" }
+                return CardDetails(
+                    normalized = digits,
+                    bin = digits.take(6),
+                    last4 = digits.takeLast(4),
+                )
+            }
+        }
+    }
 }
