@@ -1,4 +1,4 @@
-package im.bigs.pg.external.pg.client
+package im.bigs.pg.external.pg.client.mock
 
 import im.bigs.pg.application.pg.port.out.PgApproveRequest
 import im.bigs.pg.application.pg.port.out.PgApproveResult
