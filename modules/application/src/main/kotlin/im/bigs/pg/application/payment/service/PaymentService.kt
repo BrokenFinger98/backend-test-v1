@@ -1,5 +1,8 @@
 package im.bigs.pg.application.payment.service
 
+import im.bigs.pg.application.core.exception.badRequest
+import im.bigs.pg.application.core.exception.conflict
+import im.bigs.pg.application.core.exception.notFound
 import im.bigs.pg.application.partner.port.out.FeePolicyOutPort
 import im.bigs.pg.application.partner.port.out.PartnerOutPort
 import im.bigs.pg.application.payment.port.`in`.PaymentCommand
@@ -46,18 +49,20 @@ class PaymentService(
 
     private fun findActivePartner(partnerId: Long): Partner {
         val partner = partnerRepository.findById(partnerId)
-            ?: throw IllegalArgumentException("Partner not found: $partnerId")
-        require(partner.active) { "Partner is inactive: ${partner.id}" }
+            ?: throw notFound("Partner not found: $partnerId")
+        if (!partner.active) {
+            throw conflict("Partner is inactive: ${partner.id}")
+        }
         return partner
     }
 
     private fun selectPgClient(partnerId: Long): PgClientOutPort =
         pgClients.firstOrNull { it.supports(partnerId) }
-            ?: throw IllegalStateException("No PG client for partner $partnerId")
+            ?: throw conflict("No PG client for partner $partnerId")
 
     private fun fetchPolicy(partnerId: Long, approvedAt: LocalDateTime): FeePolicy =
         feePolicyRepository.findEffectivePolicy(partnerId, approvedAt)
-            ?: throw IllegalArgumentException("Fee Policy not found: $partnerId")
+            ?: throw notFound("Fee Policy not found: $partnerId")
 
     private fun PaymentCommand.toPgApproveRequest(partnerId: Long, card: CardDetails): PgApproveRequest =
         PgApproveRequest(
@@ -103,7 +108,9 @@ class PaymentService(
 
             fun from(raw: String): CardDetails {
                 val digits = raw.filter(Char::isDigit)
-                require(digits.length >= MIN_DIGITS) { "Card number must contain at least $MIN_DIGITS digits" }
+                if (digits.length < MIN_DIGITS) {
+                    throw badRequest("Card number must contain at least $MIN_DIGITS digits")
+                }
                 return CardDetails(
                     normalized = digits,
                     bin = digits.take(6),

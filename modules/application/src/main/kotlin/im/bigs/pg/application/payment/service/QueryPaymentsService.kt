@@ -1,5 +1,6 @@
 package im.bigs.pg.application.payment.service
 
+import im.bigs.pg.application.core.exception.badRequest
 import im.bigs.pg.application.payment.port.`in`.QueryFilter
 import im.bigs.pg.application.payment.port.`in`.QueryPaymentsUseCase
 import im.bigs.pg.application.payment.port.`in`.QueryResult
@@ -69,8 +70,11 @@ class QueryPaymentsService(
         )
     }
 
-    private fun parseStatus(status: String?): PaymentStatus? =
-        status?.takeIf { it.isNotBlank() }?.runCatching { PaymentStatus.valueOf(this.uppercase()) }?.getOrNull()
+    private fun parseStatus(status: String?): PaymentStatus? {
+        if (status.isNullOrBlank()) return null
+        return runCatching { PaymentStatus.valueOf(status.uppercase()) }
+            .getOrElse { throw badRequest("Invalid status: $status") }
+    }
 
     companion object {
         private const val DEFAULT_LIMIT = 20

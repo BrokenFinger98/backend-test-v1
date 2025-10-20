@@ -1,5 +1,6 @@
 package im.bigs.pg.application.payment.service
 
+import im.bigs.pg.application.core.exception.ApplicationException
 import im.bigs.pg.application.partner.port.out.FeePolicyOutPort
 import im.bigs.pg.application.partner.port.out.PartnerOutPort
 import im.bigs.pg.application.payment.port.`in`.PaymentCommand
@@ -25,6 +26,7 @@ import java.math.BigDecimal
 import java.time.LocalDateTime
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
+import kotlin.test.assertTrue
 
 @ExtendWith(MockKExtension::class)
 class PaymentServiceTest {
@@ -131,7 +133,8 @@ class PaymentServiceTest {
         every { partnerRepo.findById(partnerId) } returns null
 
         // when & then
-        assertFailsWith<IllegalArgumentException> { paymentService.pay(command) }
+        val ex = assertFailsWith<ApplicationException> { paymentService.pay(command) }
+        assertTrue(ex is ApplicationException.NotFound)
         verify(exactly = 0) { pgClient.supports(any()) }
         verify(exactly = 0) { feeRepo.findEffectivePolicy(any(), any()) }
         verify(exactly = 0) { paymentRepo.save(any()) }
@@ -154,7 +157,8 @@ class PaymentServiceTest {
         every { partnerRepo.findById(partnerId) } returns inactivePartner(partnerId)
 
         // when & then
-        assertFailsWith<IllegalArgumentException> { paymentService.pay(command) }
+        val ex = assertFailsWith<ApplicationException> { paymentService.pay(command) }
+        assertTrue(ex is ApplicationException.Conflict)
         verify(exactly = 0) { pgClient.supports(any()) }
         verify(exactly = 0) { pgClient.approve(any()) }
         verify(exactly = 0) { feeRepo.findEffectivePolicy(any(), any()) }
@@ -176,7 +180,8 @@ class PaymentServiceTest {
         every { pgClient.supports(partnerId) } returns false
 
         // when & then
-        assertFailsWith<IllegalStateException> { paymentService.pay(command) }
+        val ex = assertFailsWith<ApplicationException> { paymentService.pay(command) }
+        assertTrue(ex is ApplicationException.Conflict)
         verify(exactly = 1) { pgClient.supports(partnerId) }
         verify(exactly = 0) { pgClient.approve(any()) }
         verify(exactly = 0) { feeRepo.findEffectivePolicy(any(), any()) }
@@ -197,7 +202,8 @@ class PaymentServiceTest {
         every { pgClient.supports(partnerId) } returns true
 
         // when & then
-        assertFailsWith<IllegalArgumentException> { paymentService.pay(command) }
+        val ex = assertFailsWith<ApplicationException> { paymentService.pay(command) }
+        assertTrue(ex is ApplicationException.BadRequest)
 
         verify(exactly = 1) { pgClient.supports(partnerId) }
         verify(exactly = 0) { pgClient.approve(any()) }
@@ -228,7 +234,8 @@ class PaymentServiceTest {
         every { feeRepo.findEffectivePolicy(partnerId, approveAt) } returns null
 
         // when & then
-        assertFailsWith<IllegalArgumentException> { paymentService.pay(command) }
+        val ex = assertFailsWith<ApplicationException> { paymentService.pay(command) }
+        assertTrue(ex is ApplicationException.NotFound)
         verify(exactly = 1) { pgClient.supports(partnerId) }
         verify(exactly = 1) { pgClient.approve(any()) }
         verify(exactly = 1) { feeRepo.findEffectivePolicy(partnerId, approveAt) }

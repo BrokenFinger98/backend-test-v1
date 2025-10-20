@@ -1,5 +1,6 @@
 package im.bigs.pg.application.payment.service
 
+import im.bigs.pg.application.core.exception.ApplicationException
 import im.bigs.pg.application.payment.port.`in`.QueryFilter
 import im.bigs.pg.application.payment.port.out.PaymentOutPort
 import im.bigs.pg.application.payment.port.out.PaymentPage
@@ -26,6 +27,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
+import kotlin.test.assertFailsWith
 
 @ExtendWith(MockKExtension::class)
 class QueryPaymentsServiceTest {
@@ -150,6 +152,20 @@ class QueryPaymentsServiceTest {
 
         verify(exactly = 1) { paymentRepository.findBy(any()) }
         verify(exactly = 1) { paymentRepository.summary(any()) }
+    }
+
+    @Test
+    @DisplayName("잘못된 상태 값이면 예외가 발생해야 한다")
+    fun queryWithInvalidStatus() {
+        // given
+        val filter = QueryFilter(status = "invalid")
+
+        // when & then
+        val ex = assertFailsWith<ApplicationException> { service.query(filter) }
+        assertTrue(ex is ApplicationException.BadRequest)
+
+        verify(exactly = 0) { paymentRepository.findBy(any()) }
+        verify(exactly = 0) { paymentRepository.summary(any()) }
     }
 }
 
