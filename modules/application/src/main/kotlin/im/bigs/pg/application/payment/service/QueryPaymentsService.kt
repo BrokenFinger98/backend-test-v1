@@ -7,6 +7,7 @@ import im.bigs.pg.application.payment.port.out.PaymentOutPort
 import im.bigs.pg.application.payment.port.out.PaymentPage
 import im.bigs.pg.application.payment.port.out.PaymentQuery
 import im.bigs.pg.application.payment.port.out.PaymentSummaryFilter
+import im.bigs.pg.application.payment.port.out.PaymentSummaryProjection
 import im.bigs.pg.domain.payment.PaymentStatus
 import im.bigs.pg.domain.payment.PaymentSummary
 import org.springframework.stereotype.Service
@@ -35,12 +36,10 @@ class QueryPaymentsService(
      * @return 조회 결과(목록/통계/커서)
      */
     override fun query(filter: QueryFilter): QueryResult {
-        val (cursorInstant, cursorId) = decodeCursor(filter.cursor)
-        val cursorCreatedAt = cursorInstant?.atOffset(ZoneOffset.UTC)?.toLocalDateTime()
-
         val status = parseStatus(filter.status)
         val limit = filter.limit.takeIf { it > 0 } ?: DEFAULT_LIMIT
 
+        val cursor = CursorCodec.decode(filter.cursor)
         val page = paymentRepository.findBy(
             PaymentQuery(
                 partnerId = filter.partnerId,
@@ -48,8 +47,8 @@ class QueryPaymentsService(
                 from = filter.from,
                 to = filter.to,
                 limit = limit,
-                cursorCreatedAt = cursorCreatedAt,
-                cursorId = cursorId,
+                cursorCreatedAt = cursor?.createdAt,
+                cursorId = cursor?.id,
             ),
         )
 
@@ -62,45 +61,12 @@ class QueryPaymentsService(
             ),
         )
 
-        val nextCursor = nextCursor(page)
-
         return QueryResult(
             items = page.items,
-            summary = PaymentSummary(
-                count = summaryProjection.count,
-                totalAmount = summaryProjection.totalAmount,
-                totalNetAmount = summaryProjection.totalNetAmount,
-            ),
-            nextCursor = nextCursor,
+            summary = summaryProjection.toSummary(),
+            nextCursor = CursorCodec.encode(page),
             hasNext = page.hasNext,
         )
-    }
-
-    /** 다음 페이지 이동을 위한 커서 인코딩. */
-    private fun encodeCursor(createdAt: Instant?, id: Long?): String? {
-        if (createdAt == null || id == null) return null
-        val raw = "${createdAt.toEpochMilli()}:$id"
-        return Base64.getUrlEncoder().withoutPadding().encodeToString(raw.toByteArray())
-    }
-
-    /** 요청으로 전달된 커서 복원. 유효하지 않으면 null 커서로 간주합니다. */
-    private fun decodeCursor(cursor: String?): Pair<Instant?, Long?> {
-        if (cursor.isNullOrBlank()) return null to null
-        return try {
-            val raw = String(Base64.getUrlDecoder().decode(cursor))
-            val parts = raw.split(":")
-            val ts = parts[0].toLong()
-            val id = parts[1].toLong()
-            Instant.ofEpochMilli(ts) to id
-        } catch (e: Exception) {
-            null to null
-        }
-    }
-
-    private fun nextCursor(page: PaymentPage): String? {
-        if (!page.hasNext) return null
-        val nextInstant = page.nextCursorCreatedAt?.toInstant(ZoneOffset.UTC)
-        return encodeCursor(nextInstant, page.nextCursorId)
     }
 
     private fun parseStatus(status: String?): PaymentStatus? =
@@ -109,4 +75,36 @@ class QueryPaymentsService(
     companion object {
         private const val DEFAULT_LIMIT = 20
     }
+
+    private data class Cursor(
+        val createdAt: java.time.LocalDateTime,
+        val id: Long,
+    )
+
+    private object CursorCodec {
+        fun decode(token: String?): Cursor? {
+            if (token.isNullOrBlank()) return null
+            return runCatching {
+                val raw = String(Base64.getUrlDecoder().decode(token))
+                val (millis, id) = raw.split(":", limit = 2)
+                val instant = Instant.ofEpochMilli(millis.toLong())
+                Cursor(
+                    createdAt = instant.atOffset(ZoneOffset.UTC).toLocalDateTime(),
+                    id = id.toLong(),
+                )
+            }.getOrNull()
+        }
+
+        fun encode(page: PaymentPage): String? {
+            if (!page.hasNext) return null
+            val createdAt = page.nextCursorCreatedAt ?: return null
+            val id = page.nextCursorId ?: return null
+            val instant = createdAt.toInstant(ZoneOffset.UTC)
+            val raw = "${instant.toEpochMilli()}:$id"
+            return Base64.getUrlEncoder().withoutPadding().encodeToString(raw.toByteArray())
+        }
+    }
+
+    private fun PaymentSummaryProjection.toSummary(): PaymentSummary =
+        PaymentSummary(count = count, totalAmount = totalAmount, totalNetAmount = totalNetAmount)
 }
